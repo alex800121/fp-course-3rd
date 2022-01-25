@@ -220,6 +220,39 @@ data Digit3 =
   | D3 Digit Digit Digit
   deriving Eq
 
+showDigit3 :: Digit3 -> Chars
+showDigit3 x = case x of
+  D1 Zero -> Nil 
+  D1 a    -> showDigit a
+  D2 Zero a -> showDigit3 (D1 a)
+  D2 b a  -> case b of
+    Zero  -> showDigit3 (D1 a)
+    One   -> (case a of
+      Zero  -> "ten"
+      One   -> "eleven"
+      Two   -> "twelve"
+      Three -> "thirteen"
+      Four  -> "fourteen"
+      Five  -> "fifteen"
+      Six   -> "sixteen"
+      Seven -> "seventeen"
+      Eight -> "eighteen"
+      Nine  -> "nineteen"
+      ) 
+    c     -> (case c of
+      Two   -> "twenty"
+      Three -> "thirty"
+      Four  -> "forty"
+      Five  -> "fifty"
+      Six   -> "sixty"
+      Seven -> "seventy"
+      Eight -> "eighty"
+      Nine  -> "ninety"
+      ) ++ (if a == Zero then "" else '-' :. showDigit3 (D1 a))
+  D3 Zero b a     -> showDigit3 (D2 b a)
+  D3 c Zero Zero  -> showDigit c ++ " hundred"
+  D3 c b a        -> showDigit c ++ " hundred and " ++ showDigit3 (D2 b a)
+
 -- Possibly convert a character to a digit.
 fromChar ::
   Char
@@ -323,5 +356,53 @@ fromChar _ =
 dollars ::
   Chars
   -> Chars
-dollars =
-  error "todo: Course.Cheque#dollars"
+dollars = parser
+
+--parser :: Chars -> Chars
+parser st = 
+  let
+    f Nil acc = (h acc, Nil)
+    f ('.' :. xs) acc = (h acc, i (g xs Nil))
+    f (x :. xs) acc
+      | isDigit x = f xs (acc ++ x :. Nil)
+      | otherwise = f xs acc
+    g Nil acc = acc
+    g (x :. xs) acc
+      | isDigit x = g xs (acc ++ x :. Nil)
+      | otherwise = g xs acc
+    h s = let l = (`mod` 3) . (3 -) . (`mod` 3) . length $ s in chunksOf 3 $ replicate l '0' ++ s
+    i s = '0' :.  take 2 (s ++ repeat '0')
+    (m, n) = f st Nil
+    (m', n') = (reverse . map showDigit3 . map charsToDigit3 $ m, showDigit3 . charsToDigit3 $ n)
+    _ :. m'' = case reverse $ zip' m' illion of
+      "" :. Nil       -> " zero dollar and "
+      " one " :. Nil  -> " one dollar and "
+      m'''            -> foldRight (\x acc -> if x == "" then acc else ' ' :. x ++ acc) Nil m''' ++ "dollars and "
+    n'' = case n' of
+      ""      -> "zero cent"
+      "one" -> "one cent"
+      n'''    -> n''' ++ " cents"
+  in m'' ++ n'' --(m, m', zip' m' illion, m'', n, n', n'') --m'' ++ n''
+
+chunksOf :: Integral a => a -> List b -> List (List b)
+chunksOf n l = f n l Nil
+  where
+    f _ Nil acc = acc :. Nil
+    f 0 xs acc = acc :. f n xs Nil 
+    f i (x :. xs) acc = f (i - 1) xs (acc ++ x :. Nil)
+
+charsToDigit3 :: Chars -> Digit3 
+charsToDigit3 st = case map f st of 
+  (x :. y :. z :. _)  -> D3 x y z
+  _                   -> D3 Zero Zero Zero
+  where
+    f c = case fromChar c of
+      Empty   -> error "Unexpected digit"
+      Full x  -> x
+
+zip' :: List Chars -> List Chars -> List Chars
+zip' Nil _ = Nil
+zip' _ Nil = Nil
+zip' (a :. as) (b :. bs) = case a of
+  ""  -> "" :. zip' as bs
+  _   -> (a ++ ' ' :. b) :. zip' as bs
