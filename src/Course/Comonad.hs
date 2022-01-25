@@ -29,8 +29,7 @@ instance Comonad ExactlyOne where
   copure ::
     ExactlyOne a
     -> a
-  copure =
-    error "todo: Course.Comonad copure#instance ExactlyOne"
+  copure (ExactlyOne a) = a
 
 -- | Witness that all things with (<<=) and copure also have (<$>).
 --
@@ -41,5 +40,19 @@ instance Comonad ExactlyOne where
   (a -> b)
   -> f a
   -> f b
-(<$$>) =
-  error "todo: Course.Comonad#(<$>)"
+f <$$> a = f . copure <<= a
+-- cojoin :: f a -> f (f a)
+-- (<<=) :: (f a -> b) -> f a -> f b
+-- copure :: f a -> a
+-- > f :: (a -> b)
+-- > f . copure :: (f a -> b)
+-- > (f . copure <<=) :: f a -> f b
+
+{-
+class Functor f => Extend f where
+  -- Pronounced, extend.
+  (<<=) ::
+    (f a -> b)
+    -> f a
+    -> f b
+-}
